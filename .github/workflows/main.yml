@@ -1,0 +1,81 @@
+name: Update PS1 Forwarder Assets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake git python3 build-essential p7zip-full wget
+
+      - name: Install 3dstool
+        run: |
+          git clone https://github.com/dnasdw/3dstool.git
+          cd 3dstool
+          mkdir build && cd build
+          cmake ..
+          make -j4
+          sudo cp bin/3dstool /usr/local/bin/
+
+      - name: Install ctrulib_1.1_mod
+        run: |
+          git clone https://github.com/Sakitoshi/ctrulib_1.1_mod.git
+          sudo cp -r ctrulib_1.1_mod/libctru /opt/devkitpro/libctru-mod
+
+      - name: Build pcsx_rearmed core
+        run: |
+          git clone https://github.com/libretro/pcsx_rearmed.git
+          cd pcsx_rearmed
+          sed -i 's/"%s\/%s", dir, CARD2_FILE/"%s\/..\/..\/%s", dir, CARD2_FILE/g' frontend/libretro.c
+          sed -i 's/memcpy(CdromLabel/strncpy(CdromLabel/g' libpcsxcore/misc.c || true
+          make -f Makefile.libretro platform=ctr CTRULIB=/opt/devkitpro/libctru-mod -j4
+          mv pcsx_rearmed_libretro_ctr.a ../libretro_ctr.a
+
+      - name: Build RetroArch-3DS-Forwarders-PSOne CIA
+        run: |
+          git clone https://github.com/Sakitoshi/RetroArch-3DS-Forwarders-PSOne.git
+          cp libretro_ctr.a RetroArch-3DS-Forwarders-PSOne/
+          cd RetroArch-3DS-Forwarders-PSOne
+          make -f Makefile.ctr CTRULIB=/opt/devkitpro/libctru-mod -j4
+
+      - name: Extract CIA & Patch Assets
+        run: |
+          # Use ctrtool to extract contents
+          mkdir extraction
+          cd extraction
+          ctrtool --contents=contents ../RetroArch-3DS-Forwarders-PSOne/retroarch_3ds.cia
+          
+          # Extract NCCH
+          3dstool -x -t cxi -f contents.0000.00000000 --header headerncch0.bin --exheader exheader.bin --exefs exefs.bin --exefs-header headerexefs.bin
+          
+          # Extract EXEFS
+          3dstool -x -t exefs -f exefs.bin --exefs-dir exefs_dir
+          
+          # Patch Assets
+          python3 ../patch_assets.py exefs_dir/code.bin ../tools/assets_ps1/version version_patched
+          
+          # Create updated assets folder
+          mkdir ../updated_assets_ps1
+          cp -r ../tools/assets_ps1/* ../updated_assets_ps1/
+          
+          # Replace with updated binaries
+          cp exefs_dir/code.bin ../updated_assets_ps1/
+          cp exheader.bin ../updated_assets_ps1/
+          cp headerexefs.bin ../updated_assets_ps1/
+          cp headerncch0.bin ../updated_assets_ps1/
+          cp version_patched ../updated_assets_ps1/version
+
+      - name: Upload Updated Assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated_assets_ps1
+          path: updated_assets_ps1/
