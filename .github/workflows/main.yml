@@ -29,7 +29,7 @@ jobs:
       - name: Install ctrulib_1.1_mod
         run: |
           git clone https://github.com/Sakitoshi/ctrulib_1.1_mod.git
-          sudo cp -r ctrulib_1.1_mod/libctru /opt/devkitpro/libctru-mod
+          sudo cp -r ctrulib_1.1_mod /opt/devkitpro/libctru-mod
 
       - name: Build pcsx_rearmed core
         run: |
