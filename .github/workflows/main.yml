@@ -24,7 +24,7 @@ jobs:
           mkdir build && cd build
           cmake ..
           make -j4
-          sudo cp bin/3dstool /usr/local/bin/
+          sudo cp bin/Release/3dstool /usr/local/bin/
 
       - name: Install ctrulib_1.1_mod
         run: |
