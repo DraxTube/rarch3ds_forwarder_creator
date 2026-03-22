@@ -37,6 +37,7 @@ jobs:
           cd pcsx_rearmed
           sed -i 's/"%s\/%s", dir, CARD2_FILE/"%s\/..\/..\/%s", dir, CARD2_FILE/g' frontend/libretro.c
           sed -i 's/memcpy(CdromLabel/strncpy(CdromLabel/g' libpcsxcore/misc.c || true
+          sed -i 's/-Werror=implicit-function-declaration//g' Makefile.libretro
           make -f Makefile.libretro platform=ctr CTRULIB=/opt/devkitpro/libctru-mod -j4
           mv pcsx_rearmed_libretro_ctr.a ../libretro_ctr.a
 
